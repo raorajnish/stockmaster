@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - StockMaster{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand fs-3 fw-bold" href="{% url 'core:dashboard' %}">
+            <i class="bi bi-box-seam"></i> StockMaster
+        </a>
+        <div class="ms-auto">
+            <span class="navbar-text me-3">
+                <i class="bi bi-person-circle"></i> {{ user.username }}
+                {% if user.is_manager %}
+                    <span class="badge bg-warning text-dark">Inventory Manager</span>
+                {% elif user.is_w_staff %}
+                    <span class="badge bg-info">Warehouse Staff</span>
+                {% endif %}
+            </span>
+            <form method="post" action="{% url 'users:logout' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid mt-4">
+    <h2 class="mb-4">Dashboard</h2>
+    
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-box-seam"></i> Total Products in Stock</h5>
+                    <h2 class="card-text">{{ total_products }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-exclamation-triangle"></i> Low Stock Items</h5>
+                    <h2 class="card-text">{{ low_stock_items }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-x-circle"></i> Out of Stock Items</h5>
+                    <h2 class="card-text">{{ out_of_stock_items }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-arrow-down-circle"></i> Pending Receipts</h5>
+                    <h2 class="card-text">{{ pending_receipts }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-arrow-up-circle"></i> Pending Deliveries</h5>
+                    <h2 class="card-text">{{ pending_deliveries }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-white bg-secondary">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-arrow-left-right"></i> Internal Transfers Scheduled</h5>
+                    <h2 class="card-text">{{ internal_transfers }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Operations Table -->
+    <div class="card shadow">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-list-ul"></i> Recent Operations / Stock Moves</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Reference / Document No.</th>
+                            <th>Type</th>
+                            <th>Source Location</th>
+                            <th>Destination Location</th>
+                            <th>Status</th>
+                            <th>Scheduled Date</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for operation in recent_operations %}
+                        <tr>
+                            <td><strong>{{ operation.reference }}</strong></td>
+                            <td>
+                                {% if operation.type == 'Receipt' %}
+                                    <span class="badge bg-info">{{ operation.type }}</span>
+                                {% elif operation.type == 'Delivery' %}
+                                    <span class="badge bg-success">{{ operation.type }}</span>
+                                {% elif operation.type == 'Internal Transfer' %}
+                                    <span class="badge bg-secondary">{{ operation.type }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ operation.type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ operation.source }}</td>
+                            <td>{{ operation.destination }}</td>
+                            <td>
+                                {% if operation.status == 'Done' %}
+                                    <span class="badge bg-success">{{ operation.status }}</span>
+                                {% elif operation.status == 'Ready' %}
+                                    <span class="badge bg-warning text-dark">{{ operation.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ operation.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ operation.scheduled_date }}</td>
+                            <td>{{ operation.last_updated }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No recent operations</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

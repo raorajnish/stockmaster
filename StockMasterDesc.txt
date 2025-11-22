@@ -1,0 +1,403 @@
+1. Project description (Django IMS – “StockMaster”)
+
+Goal:
+Replace Excel sheets and manual registers with a centralized, role-based Inventory Management System where:
+
+Inventory Managers control receipts, deliveries, stock adjustments and reports.
+
+Warehouse Staff perform day-to-day operations: picking, packing, transfers, counting.
+
+The system keeps a real-time stock ledger per product & location and provides a dashboard with KPIs and alerts (low stock, pending operations, etc.).
+
+Technology: Django, Django auth, possibly Django REST Framework later if you want APIs.
+
+2. Core feature list
+A. Authentication & User Roles
+
+User sign-up / login with Django auth.
+
+Role flags: is_inventory_manager, is_warehouse_staff (or use Django Groups).
+
+OTP-based forgot password / reset (via email or SMS API).
+
+After login → redirect to Dashboard.
+
+B. Dashboard (Landing / Home page)
+
+When user logs in, they see:
+
+Top KPI cards (as in your wireframe):
+
+Total Products in Stock
+
+Count of active products that have stock > 0 across all locations.
+
+Low Stock Items
+
+Count of products below their min_qty (from Reorder Rule).
+
+Out of Stock Items
+
+Count of products whose available quantity = 0.
+
+Pending Receipts
+
+Number of RECEIPT operations with statuses: WAITING or READY.
+
+Pending Deliveries
+
+Number of DELIVERY operations with statuses: WAITING or READY.
+
+Internal Transfers Scheduled
+
+INTERNAL operations not yet DONE or CANCELED.
+
+Central table: “Recent Operations / Stock Moves”
+
+Columns (matches your wireframe idea):
+
+Reference / Document No.
+
+Type (Receipt / Delivery / Internal / Adjustment)
+
+Source Location
+
+Destination Location
+
+Status (Draft, Waiting, Ready, Done, Canceled)
+
+Scheduled Date
+
+Last Updated
+
+Dynamic filters above the table:
+
+By document type (multi-select or dropdown).
+
+By status.
+
+By warehouse / location.
+
+By product category.
+
+Search by product SKU/Name.
+
+3. Navigation & Pages (from your wireframe)
+
+Left sidebar:
+
+Dashboard
+
+Operations
+
+Receipts
+
+Delivery Orders
+
+Internal Transfers
+
+Stock Adjustments
+
+Products
+
+Move History
+
+Settings
+
+Warehouses (and Locations)
+
+Profile Menu
+
+My Profile
+
+Logout
+
+Below is what each page shows.
+
+3.1 Products Page
+
+Purpose: Create, update, and inspect products & stock per location.
+
+Main list (table):
+
+SKU / Code
+
+Product Name
+
+Category
+
+Total Available Qty (all locations)
+
+Main Warehouse / Default location
+
+Low-stock indicator (e.g., red icon if below min qty)
+
+Actions:
+
+Add Product button → opens form (like in your wireframe) with fields:
+
+Name
+
+SKU / Code
+
+Category (dropdown)
+
+Unit of Measure (dropdown – e.g., pcs, kg, box)
+
+Initial Stock (optional, per location – or just overall in default location)
+
+Reorder Rule:
+
+Minimum quantity
+
+Maximum quantity / reorder level
+
+Preferred location / warehouse
+
+Product detail page (optional but nice):
+
+General info (name, SKU, category, UoM).
+
+Stock by location table:
+
+Warehouse
+
+Location
+
+On-hand Qty
+
+Reserved Qty (if you add reservations later)
+
+Recent moves for this product (last N ledger entries).
+
+3.2 Receipts (Incoming Goods)
+
+Used when items arrive from vendors.
+
+List view (table):
+
+Reference (e.g., “RCPT-0001”)
+
+Supplier
+
+Warehouse / Destination location
+
+Scheduled Date
+
+Status (Draft, Waiting, Ready, Done, Canceled)
+
+Filters:
+
+By status, supplier, warehouse, date range.
+
+Create / Edit Receipt form:
+
+Header:
+
+Supplier (FK or simple text; you can add a Partner model)
+
+Destination warehouse / location
+
+Scheduled Date
+
+Notes
+
+Line items (repeatable rows):
+
+Product (searchable dropdown, by name/SKU)
+
+Quantity
+
+Unit of Measure (auto from product but editable if needed)
+
+Workflow:
+
+User creates receipt → status: DRAFT.
+
+When quantities & products set, click Confirm / Validate:
+
+Status → DONE.
+
+Stock increased at destination location.
+
+Stock ledger entries created.
+
+3.3 Delivery Orders (Outgoing Goods)
+
+Used when stock leaves warehouse to customer.
+
+List view similar to Receipts:
+
+Reference
+
+Customer
+
+Source Warehouse / location
+
+Scheduled Date
+
+Status (Draft, Waiting, Ready, Done, Canceled)
+
+Create / Edit:
+
+Header fields: customer, source location, scheduled date.
+
+Lines: product, quantity, UoM.
+
+Workflow:
+
+Create delivery (DRAFT).
+
+Warehouse staff pick items (you can track in a simple field or status).
+
+When ready to ship, Validate:
+
+Status → DONE.
+
+Stock decreased from source location.
+
+Entries in stock ledger.
+
+3.4 Internal Transfers
+
+Used for moves inside the company:
+
+Examples:
+
+Main Warehouse → Production Floor
+
+Rack A → Rack B
+
+Warehouse 1 → Warehouse 2
+
+List view:
+
+Reference
+
+Source location
+
+Destination location
+
+Status
+
+Scheduled date
+
+Create / Edit:
+
+Source location
+
+Destination location
+
+Lines: product, quantity.
+
+On Validate:
+
+Decrease stock at source, increase at destination.
+
+Total stock per product across all warehouses remains same.
+
+3.5 Stock Adjustments
+
+Used to fix differences between system and physical stock.
+
+List view:
+
+Reference
+
+Warehouse / location
+
+Responsible user
+
+Status
+
+Created at
+
+Adjustment form:
+
+Select location (and optionally product filter).
+
+For each product being counted:
+
+Current (system) quantity shown.
+
+Input physical counted quantity.
+
+On Validate:
+
+System creates ledger entries (positive or negative difference).
+
+Operation type: ADJUSTMENT.
+
+3.6 Move History (Stock Ledger)
+
+Pure history / audit log of all the above.
+
+Table columns:
+
+Date / Time
+
+Product
+
+From location
+
+To location
+
+Quantity (+/-)
+
+Document type (Receipt / Delivery / Internal / Adjustment)
+
+Document reference
+
+Performed by (user)
+
+Filters:
+
+Date range
+
+Product
+
+Warehouse / location
+
+Document type
+
+This page does not allow editing – view-only.
+
+3.7 Settings → Warehouse & Locations
+
+Warehouse list:
+
+Warehouse name
+
+Code
+
+Address / city
+
+Number of locations
+
+Number of products stored
+
+Warehouse detail:
+
+General info
+
+Locations table:
+
+Location name (e.g., “Main Store”, “Rack A1”)
+
+Code
+
+Is default receipt / default delivery
+
+Parent location (for hierarchy, optional)
+
+3.8 Profile & Misc
+
+My Profile:
+
+Name, email, role.
+
+Change password link.
+
+Two-factor / OTP reset preferences (if you implement).
+
+Logout: Django default.
