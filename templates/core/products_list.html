@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block title %}Products - StockMaster{% endblock %}
+
+{% block page_title %}Products{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">Product Management</h5>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="bi bi-tags"></i> Create Category
+        </button>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addUOMModal">
+            <i class="bi bi-rulers"></i> Create Unit of Measure
+        </button>
+        <a href="{% url 'core:product_create' %}" class="btn btn-accent">
+            <i class="bi bi-plus-circle"></i> Create Product
+        </a>
+    </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section mb-4">
+    <h6 class="mb-3"><i class="bi bi-funnel"></i> Filters</h6>
+    <form method="get" action="{% url 'core:products_list' %}" class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Search (Name/SKU)</label>
+            <input type="text" name="search" class="form-control form-control-sm" 
+                   placeholder="Search products..." value="{{ current_filters.search }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Category</label>
+            <select name="category" class="form-select form-select-sm">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if current_filters.category == category.id|stringformat:"s" %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Status</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="active" {% if current_filters.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if current_filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">&nbsp;</label>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="col-12">
+            <a href="{% url 'core:products_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Products Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Products List</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>SKU</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>UoM</th>
+                    <th>Total Stock</th>
+                    <th>Min Stock</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td><strong>{{ product.sku }}</strong></td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.category.name|default:"-" }}</td>
+                    <td>{{ product.uom.abbreviation|default:"-" }}</td>
+                    <td>
+                        <span class="{% if product.total_stock < product.min_stock %}text-warning{% elif product.total_stock == 0 %}text-danger{% else %}text-success{% endif %}">
+                            <strong>{{ product.total_stock|default:0 }}</strong>
+                        </span>
+                    </td>
+                    <td>{{ product.min_stock }}</td>
+                    <td>${{ product.cost|floatformat:2 }}</td>
+                    <td>
+                        {% if product.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'core:product_edit' product.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No products found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">
+                    <i class="bi bi-tags"></i> Create Category
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="categoryForm" method="post" action="{% url 'core:category_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_category_name" class="form-label">Category Name *</label>
+                        <input type="text" name="name" class="form-control" id="id_category_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_category_description" class="form-label">Description</label>
+                        <textarea name="description" class="form-control" id="id_category_description" rows="3"></textarea>
+                    </div>
+                    
+                    <div id="categoryFormErrors" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-check-circle"></i> Save Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Unit of Measure Modal -->
+<div class="modal fade" id="addUOMModal" tabindex="-1" aria-labelledby="addUOMModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUOMModalLabel">
+                    <i class="bi bi-rulers"></i> Create Unit of Measure
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uomForm" method="post" action="{% url 'core:uom_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_uom_name" class="form-label">Unit Name *</label>
+                        <input type="text" name="name" class="form-control" id="id_uom_name" required placeholder="e.g., Piece, Kilogram, Box">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_uom_abbreviation" class="form-label">Abbreviation *</label>
+                        <input type="text" name="abbreviation" class="form-control" id="id_uom_abbreviation" required maxlength="10" placeholder="e.g., pcs, kg, box">
+                        <small class="form-text text-muted">Short code (max 10 characters)</small>
+                    </div>
+                    
+                    <div id="uomFormErrors" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-check-circle"></i> Save Unit of Measure
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Category Form Handler
+    const categoryForm = document.getElementById('categoryForm');
+    const categoryErrorDiv = document.getElementById('categoryFormErrors');
+    
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(categoryForm);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch('{% url "core:category_create" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
+                    modal.hide();
+                    categoryForm.reset();
+                    categoryErrorDiv.classList.add('d-none');
+                    alert('Category created successfully!');
+                    window.location.reload();
+                } else {
+                    categoryErrorDiv.innerHTML = '';
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        errors.forEach(error => {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.textContent = `${field}: ${error}`;
+                            categoryErrorDiv.appendChild(errorMsg);
+                        });
+                    }
+                    categoryErrorDiv.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                categoryErrorDiv.innerHTML = '<div>An error occurred. Please try again.</div>';
+                categoryErrorDiv.classList.remove('d-none');
+            });
+        });
+    }
+    
+    // Unit of Measure Form Handler
+    const uomForm = document.getElementById('uomForm');
+    const uomErrorDiv = document.getElementById('uomFormErrors');
+    
+    if (uomForm) {
+        uomForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(uomForm);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch('{% url "core:uom_create" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addUOMModal'));
+                    modal.hide();
+                    uomForm.reset();
+                    uomErrorDiv.classList.add('d-none');
+                    alert('Unit of Measure created successfully!');
+                    window.location.reload();
+                } else {
+                    uomErrorDiv.innerHTML = '';
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        errors.forEach(error => {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.textContent = `${field}: ${error}`;
+                            uomErrorDiv.appendChild(errorMsg);
+                        });
+                    }
+                    uomErrorDiv.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                uomErrorDiv.innerHTML = '<div>An error occurred. Please try again.</div>';
+                uomErrorDiv.classList.remove('d-none');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+

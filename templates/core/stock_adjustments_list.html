@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock Adjustments - StockMaster{% endblock %}
+
+{% block page_title %}Stock Adjustments{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">Stock Adjustment Management</h5>
+    <a href="{% url 'core:stock_adjustment_create' %}" class="btn btn-accent">
+        <i class="bi bi-plus-circle"></i> Create Adjustment
+    </a>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section mb-4">
+    <h6 class="mb-3"><i class="bi bi-funnel"></i> Filters</h6>
+    <form method="get" action="{% url 'core:stock_adjustments_list' %}" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Search (Reference/SKU/Name)</label>
+            <input type="text" name="search" class="form-control form-control-sm" 
+                   placeholder="Search..." value="{{ current_filters.search }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Status</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">All Status</option>
+                {% for code, label in status_types %}
+                <option value="{{ code }}" {% if current_filters.status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Warehouse</label>
+            <select name="warehouse" class="form-select form-select-sm">
+                <option value="">All Warehouses</option>
+                {% for warehouse in warehouses %}
+                <option value="{{ warehouse.id }}" {% if current_filters.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Product</label>
+            <select name="product" class="form-select form-select-sm">
+                <option value="">All Products</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" {% if current_filters.product == product.id|stringformat:"s" %}selected{% endif %}>{{ product.sku }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">&nbsp;</label>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="col-12">
+            <a href="{% url 'core:stock_adjustments_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Adjustments Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-sliders"></i> Stock Adjustments List</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>Reference</th>
+                    <th>Location</th>
+                    <th>Products</th>
+                    <th>Total Qty</th>
+                    <th>Status</th>
+                    <th>Created By</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adjustment in adjustments %}
+                <tr>
+                    <td><strong>{{ adjustment.reference|default:"(no ref)" }}</strong></td>
+                    <td>{{ adjustment.source_location|default:"-" }}</td>
+                    <td>
+                        {% for line in adjustment.lines.all|slice:":2" %}
+                            {{ line.product.sku }} ({{ line.quantity }})<br>
+                        {% endfor %}
+                        {% if adjustment.lines.count > 2 %}
+                            <small class="text-muted">+{{ adjustment.lines.count|add:"-2" }} more</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for line in adjustment.lines.all %}
+                            {% if forloop.first %}
+                                <strong>{{ line.quantity }}</strong>
+                            {% else %}
+                                + {{ line.quantity }}
+                            {% endif %}
+                        {% empty %}
+                            0
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if adjustment.status == 'DONE' %}
+                            <span class="badge badge-status-done">{{ adjustment.get_status_display }}</span>
+                        {% elif adjustment.status == 'READY' %}
+                            <span class="badge badge-status-ready">{{ adjustment.get_status_display }}</span>
+                        {% elif adjustment.status == 'WAITING' %}
+                            <span class="badge badge-status-waiting">{{ adjustment.get_status_display }}</span>
+                        {% elif adjustment.status == 'DRAFT' %}
+                            <span class="badge badge-status-draft">{{ adjustment.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ adjustment.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ adjustment.created_by.username|default:"-" }}</td>
+                    <td>{{ adjustment.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        {% if adjustment.status != 'DONE' %}
+                        <a href="{% url 'core:stock_adjustment_validate' adjustment.pk %}" class="btn btn-sm btn-success" 
+                           onclick="return confirm('Validate this adjustment? Stock will be updated to match physical count.')">
+                            <i class="bi bi-check-circle"></i> Validate
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Validated</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-sliders" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No stock adjustments found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

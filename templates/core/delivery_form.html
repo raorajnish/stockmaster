@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - StockMaster{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="data-table">
+            <div class="table-header">
+                <h5 class="mb-0"><i class="bi bi-box-arrow-up"></i> {{ title }}</h5>
+            </div>
+            <div class="p-4">
+                <form method="post" id="deliveryForm">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.partner.id_for_label }}" class="form-label">Customer *</label>
+                            {{ form.partner }}
+                            {% if form.partner.errors %}
+                                <div class="text-danger small">{{ form.partner.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.source_location.id_for_label }}" class="form-label">Source Location *</label>
+                            {{ form.source_location }}
+                            {% if form.source_location.errors %}
+                                <div class="text-danger small">{{ form.source_location.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.scheduled_date.id_for_label }}" class="form-label">Scheduled Date</label>
+                            {{ form.scheduled_date }}
+                            {% if form.scheduled_date.errors %}
+                                <div class="text-danger small">{{ form.scheduled_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger small">{{ form.notes.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="mb-3">Products</h6>
+                    <div id="productLines">
+                        <div class="row g-3 mb-3 product-line">
+                            <div class="col-md-6">
+                                <label class="form-label">Product</label>
+                                <select name="products" class="form-select product-select">
+                                    <option value="">Select Product</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" data-uom="{{ product.uom.abbreviation|default:'-' }}">
+                                        {{ product.sku }} - {{ product.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" name="quantities" class="form-control quantity-input" min="1" value="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-danger w-100 remove-line">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-4" id="addProductLine">
+                        <i class="bi bi-plus-circle"></i> Add Product
+                    </button>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check-circle"></i> Create Delivery
+                        </button>
+                        <a href="{% url 'core:deliveries_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('addProductLine');
+    const productLines = document.getElementById('productLines');
+    
+    addBtn.addEventListener('click', function() {
+        const firstLine = productLines.querySelector('.product-line');
+        const newLine = firstLine.cloneNode(true);
+        
+        // Clear values
+        newLine.querySelector('.product-select').value = '';
+        newLine.querySelector('.quantity-input').value = '1';
+        
+        // Add remove functionality
+        newLine.querySelector('.remove-line').addEventListener('click', function() {
+            if (productLines.querySelectorAll('.product-line').length > 1) {
+                newLine.remove();
+            }
+        });
+        
+        productLines.appendChild(newLine);
+    });
+    
+    // Remove line functionality
+    document.querySelectorAll('.remove-line').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (productLines.querySelectorAll('.product-line').length > 1) {
+                this.closest('.product-line').remove();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+

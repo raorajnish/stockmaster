@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - StockMaster{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="data-table">
+            <div class="table-header">
+                <h5 class="mb-0"><i class="bi bi-sliders"></i> {{ title }}</h5>
+            </div>
+            <div class="p-4">
+                <form method="post" id="adjustmentForm">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.source_location.id_for_label }}" class="form-label">Location *</label>
+                            {{ form.source_location }}
+                            {% if form.source_location.errors %}
+                                <div class="text-danger small">{{ form.source_location.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Select the location to adjust stock</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.scheduled_date.id_for_label }}" class="form-label">Date</label>
+                            {{ form.scheduled_date }}
+                            {% if form.scheduled_date.errors %}
+                                <div class="text-danger small">{{ form.scheduled_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger small">{{ form.notes.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="mb-3">Products Adjustment</h6>
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-info-circle"></i> Enter the physical count for each product. The system will calculate the difference.
+                    </p>
+                    <div id="productLines">
+                        <div class="row g-3 mb-3 product-line">
+                            <div class="col-md-4">
+                                <label class="form-label">Product</label>
+                                <select name="products" class="form-select product-select" onchange="updateSystemQty(this)">
+                                    <option value="">Select Product</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" data-uom="{{ product.uom.abbreviation|default:'-' }}">
+                                        {{ product.sku }} - {{ product.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">System Qty</label>
+                                <input type="number" name="system_quantities" class="form-control system-qty-input" readonly value="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Physical Qty *</label>
+                                <input type="number" name="physical_quantities" class="form-control physical-qty-input" min="0" value="0" onchange="calculateDifference(this)">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Difference</label>
+                                <input type="number" class="form-control difference-input" readonly value="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-danger w-100 remove-line">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mb-4" id="addProductLine">
+                        <i class="bi bi-plus-circle"></i> Add Product
+                    </button>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check-circle"></i> Create Adjustment
+                        </button>
+                        <a href="{% url 'core:stock_adjustments_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store stock data for the selected location
+const stockData = {};
+{% if location %}
+    {% for product in products %}
+        stockData[{{ product.id }}] = {{ product.current_stock|default:0 }};
+    {% endfor %}
+{% endif %}
+
+function updateSystemQty(selectElement) {
+    const productId = selectElement.value;
+    const line = selectElement.closest('.product-line');
+    const systemQtyInput = line.querySelector('.system-qty-input');
+    const physicalQtyInput = line.querySelector('.physical-qty-input');
+    
+    if (productId && stockData[productId] !== undefined) {
+        systemQtyInput.value = stockData[productId];
+        physicalQtyInput.value = stockData[productId]; // Pre-fill with system qty
+        calculateDifference(physicalQtyInput);
+    } else {
+        systemQtyInput.value = 0;
+        physicalQtyInput.value = 0;
+        line.querySelector('.difference-input').value = 0;
+    }
+}
+
+function calculateDifference(physicalQtyInput) {
+    const line = physicalQtyInput.closest('.product-line');
+    const systemQty = parseInt(line.querySelector('.system-qty-input').value) || 0;
+    const physicalQty = parseInt(physicalQtyInput.value) || 0;
+    const difference = physicalQty - systemQty;
+    
+    line.querySelector('.difference-input').value = difference;
+    
+    // Color code the difference
+    const diffInput = line.querySelector('.difference-input');
+    if (difference > 0) {
+        diffInput.style.backgroundColor = '#d4edda';
+        diffInput.style.color = '#155724';
+    } else if (difference < 0) {
+        diffInput.style.backgroundColor = '#f8d7da';
+        diffInput.style.color = '#721c24';
+    } else {
+        diffInput.style.backgroundColor = '';
+        diffInput.style.color = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('addProductLine');
+    const productLines = document.getElementById('productLines');
+    
+    // Update system quantities when location changes
+    const locationSelect = document.getElementById('id_source_location');
+    if (locationSelect) {
+        locationSelect.addEventListener('change', function() {
+            // Reload page to get stock for new location
+            if (this.value) {
+                window.location.href = '{% url "core:stock_adjustment_create" %}?location=' + this.value;
+            }
+        });
+    }
+    
+    addBtn.addEventListener('click', function() {
+        const firstLine = productLines.querySelector('.product-line');
+        const newLine = firstLine.cloneNode(true);
+        
+        // Clear values
+        newLine.querySelector('.product-select').value = '';
+        newLine.querySelector('.system-qty-input').value = '0';
+        newLine.querySelector('.physical-qty-input').value = '0';
+        newLine.querySelector('.difference-input').value = '0';
+        newLine.querySelector('.difference-input').style.backgroundColor = '';
+        newLine.querySelector('.difference-input').style.color = '';
+        
+        // Add event listeners
+        newLine.querySelector('.product-select').addEventListener('change', function() {
+            updateSystemQty(this);
+        });
+        newLine.querySelector('.physical-qty-input').addEventListener('change', function() {
+            calculateDifference(this);
+        });
+        
+        // Add remove functionality
+        newLine.querySelector('.remove-line').addEventListener('click', function() {
+            if (productLines.querySelectorAll('.product-line').length > 1) {
+                newLine.remove();
+            }
+        });
+        
+        productLines.appendChild(newLine);
+    });
+    
+    // Remove line functionality
+    document.querySelectorAll('.remove-line').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (productLines.querySelectorAll('.product-line').length > 1) {
+                this.closest('.product-line').remove();
+            }
+        });
+    });
+    
+    // Initialize existing lines
+    document.querySelectorAll('.product-select').forEach(select => {
+        select.addEventListener('change', function() {
+            updateSystemQty(this);
+        });
+    });
+    
+    document.querySelectorAll('.physical-qty-input').forEach(input => {
+        input.addEventListener('change', function() {
+            calculateDifference(this);
+        });
+    });
+});
+</script>
+{% endblock %}
+

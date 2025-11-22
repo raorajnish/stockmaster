@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Internal Transfers - StockMaster{% endblock %}
+
+{% block page_title %}Internal Transfers{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">Internal Transfer Management</h5>
+    <a href="{% url 'core:internal_transfer_create' %}" class="btn btn-accent">
+        <i class="bi bi-plus-circle"></i> Create Transfer
+    </a>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section mb-4">
+    <h6 class="mb-3"><i class="bi bi-funnel"></i> Filters</h6>
+    <form method="get" action="{% url 'core:internal_transfers_list' %}" class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Search (Reference/SKU/Name)</label>
+            <input type="text" name="search" class="form-control form-control-sm" 
+                   placeholder="Search..." value="{{ current_filters.search }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Status</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">All Status</option>
+                {% for code, label in status_types %}
+                <option value="{{ code }}" {% if current_filters.status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Warehouse</label>
+            <select name="warehouse" class="form-select form-select-sm">
+                <option value="">All Warehouses</option>
+                {% for warehouse in warehouses %}
+                <option value="{{ warehouse.id }}" {% if current_filters.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">&nbsp;</label>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="col-12">
+            <a href="{% url 'core:internal_transfers_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Transfers Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Internal Transfers List</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>Reference</th>
+                    <th>Source Location</th>
+                    <th>Destination Location</th>
+                    <th>Products</th>
+                    <th>Total Qty</th>
+                    <th>Status</th>
+                    <th>Scheduled Date</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transfer in transfers %}
+                <tr>
+                    <td><strong>{{ transfer.reference|default:"(no ref)" }}</strong></td>
+                    <td>{{ transfer.source_location|default:"-" }}</td>
+                    <td>{{ transfer.destination_location|default:"-" }}</td>
+                    <td>
+                        {% for line in transfer.lines.all|slice:":2" %}
+                            {{ line.product.sku }} ({{ line.quantity }})<br>
+                        {% endfor %}
+                        {% if transfer.lines.count > 2 %}
+                            <small class="text-muted">+{{ transfer.lines.count|add:"-2" }} more</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for line in transfer.lines.all %}
+                            {% if forloop.first %}
+                                <strong>{{ line.quantity }}</strong>
+                            {% else %}
+                                + {{ line.quantity }}
+                            {% endif %}
+                        {% empty %}
+                            0
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if transfer.status == 'DONE' %}
+                            <span class="badge badge-status-done">{{ transfer.get_status_display }}</span>
+                        {% elif transfer.status == 'READY' %}
+                            <span class="badge badge-status-ready">{{ transfer.get_status_display }}</span>
+                        {% elif transfer.status == 'WAITING' %}
+                            <span class="badge badge-status-waiting">{{ transfer.get_status_display }}</span>
+                        {% elif transfer.status == 'DRAFT' %}
+                            <span class="badge badge-status-draft">{{ transfer.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ transfer.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ transfer.scheduled_date|date:"Y-m-d" }}</td>
+                    <td>{{ transfer.created_by.username|default:"-" }}</td>
+                    <td>
+                        {% if transfer.status != 'DONE' %}
+                        <a href="{% url 'core:internal_transfer_validate' transfer.pk %}" class="btn btn-sm btn-success" 
+                           onclick="return confirm('Validate this transfer? Stock will be moved from source to destination.')">
+                            <i class="bi bi-check-circle"></i> Validate
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Validated</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="bi bi-arrow-left-right" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No internal transfers found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
