@@ -114,3 +114,22 @@ class PartnerForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+class WarehouseForm(forms.ModelForm):
+    class Meta:
+        model = Warehouse
+        fields = ['name', 'code', 'address']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'code': forms.TextInput(attrs={'class': 'form-control', 'required': True, 'maxlength': '20'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+class LocationForm(forms.ModelForm):
+    class Meta:
+        model = Location
+        fields = ['warehouse', 'name']
+        widgets = {
+            'warehouse': forms.Select(attrs={'class': 'form-select', 'required': True}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+        }
+

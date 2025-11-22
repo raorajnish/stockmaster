@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Move History - StockMaster{% endblock %}
+
+{% block page_title %}Move History (Stock Ledger){% endblock %}
+
+{% block content %}
+<!-- Filters Section -->
+<div class="filter-section mb-4">
+    <h6 class="mb-3"><i class="bi bi-funnel"></i> Filters</h6>
+    <form method="get" action="{% url 'core:move_history' %}" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Date From</label>
+            <input type="date" name="date_from" class="form-control form-control-sm" 
+                   value="{{ current_filters.date_from }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Date To</label>
+            <input type="date" name="date_to" class="form-control form-control-sm" 
+                   value="{{ current_filters.date_to }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Product</label>
+            <select name="product" class="form-select form-select-sm">
+                <option value="">All Products</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" {% if current_filters.product == product.id|stringformat:"s" %}selected{% endif %}>
+                    {{ product.sku }} - {{ product.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted">Document Type</label>
+            <select name="doc_type" class="form-select form-select-sm">
+                <option value="">All Types</option>
+                {% for code, label in operation_types %}
+                <option value="{{ code }}" {% if current_filters.doc_type == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Warehouse</label>
+            <select name="warehouse" class="form-select form-select-sm">
+                <option value="">All Warehouses</option>
+                {% for warehouse in warehouses %}
+                <option value="{{ warehouse.id }}" {% if current_filters.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                    {{ warehouse.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted">Location</label>
+            <select name="location" class="form-select form-select-sm">
+                <option value="">All Locations</option>
+                {% for location in locations %}
+                <option value="{{ location.id }}" {% if current_filters.location == location.id|stringformat:"s" %}selected{% endif %}>
+                    {{ location }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted">&nbsp;</label>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="col-12">
+            <a href="{% url 'core:move_history' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Clear Filters
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Move History Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Stock Movement History</h5>
+        <span class="text-muted small">{{ move_history_entries|length }} entries</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>Date / Time</th>
+                    <th>Product</th>
+                    <th>From Location</th>
+                    <th>To Location</th>
+                    <th>Quantity (+/-)</th>
+                    <th>Document Type</th>
+                    <th>Document Reference</th>
+                    <th>Performed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if move_history_entries %}
+                    {% for entry in move_history_entries %}
+                    <tr>
+                        <td>
+                            <small>{{ entry.date_time|date:"Y-m-d" }}</small><br>
+                            <small class="text-muted">{{ entry.date_time|date:"H:i:s" }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ entry.product.sku }}</strong><br>
+                            <small class="text-muted">{{ entry.product.name|truncatewords:5 }}</small>
+                        </td>
+                        <td>
+                            {% if entry.from_location %}
+                                {{ entry.from_location }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.to_location %}
+                                {{ entry.to_location }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.quantity_change > 0 %}
+                                <span class="badge bg-success">+{{ entry.quantity_change }}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ entry.quantity_change }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ entry.document_type }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ entry.document_reference }}</strong>
+                        </td>
+                        <td>
+                            {% if entry.performed_by %}
+                                {{ entry.performed_by.username }}
+                            {% else %}
+                                <span class="text-muted">System</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> No stock movements found
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

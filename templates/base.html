@@ -276,6 +276,7 @@
           </a>
         </li>
 
+        {% if user.is_manager %}
         <li class="sidebar-menu-item">
           <a href="{% url 'core:receipts_list' %}" class="sidebar-menu-link">
             <i class="bi bi-box-arrow-in-down"></i>
@@ -289,6 +290,7 @@
             <span>Delivery Orders</span>
           </a>
         </li>
+        {% endif %}
 
         <li class="sidebar-menu-item">
           <a
@@ -322,7 +324,7 @@
 
         <!-- Move History -->
         <li class="sidebar-menu-item">
-          <a href="#" class="sidebar-menu-link">
+          <a href="{% url 'core:move_history' %}" class="sidebar-menu-link">
             <i class="bi bi-clock-history"></i>
             <span>Move History</span>
           </a>
@@ -339,7 +341,7 @@
         </li>
 
         <li class="sidebar-menu-item">
-          <a href="#" class="sidebar-menu-link">
+          <a href="{% url 'core:warehouses_list' %}" class="sidebar-menu-link">
             <i class="bi bi-building"></i>
             <span>Warehouses</span>
           </a>
@@ -349,7 +351,7 @@
 
         <!-- Profile -->
         <li class="sidebar-menu-item">
-          <a href="#" class="sidebar-menu-link">
+          <a href="{% url 'core:my_profile' %}" class="sidebar-menu-link">
             <i class="bi bi-person"></i>
             <span>My Profile</span>
           </a>
@@ -389,7 +391,7 @@
 
         <div class="d-flex align-items-center gap-3">
           <span class="text-muted">
-            <i class="bi bi-person-circle"></i> {{ user.username }} 
+            <i class="bi bi-person-circle"></i> {{ user.username }}
             <span class="badge badge-accent ms-2">Manager</span>
             {% elif user.is_w_staff %}
             <span class="badge bg-info ms-2">Staff</span>

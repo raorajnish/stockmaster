@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}Warehouses - StockMaster{% endblock %}
+
+{% block page_title %}Warehouses{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">Warehouse Management</h5>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+            <i class="bi bi-pin-map"></i> Add Location
+        </button>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addWarehouseModal">
+            <i class="bi bi-building"></i> Add Warehouse
+        </button>
+    </div>
+</div>
+
+<!-- Warehouses Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-building"></i> Warehouses List</h5>
+        <span class="text-muted small">{{ warehouses|length }} warehouses</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>Warehouse Name</th>
+                    <th>Code</th>
+                    <th>Address / City</th>
+                    <th>Number of Locations</th>
+                    <th>Number of Products Stored</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if warehouses %}
+                    {% for warehouse in warehouses %}
+                    <tr>
+                        <td>
+                            <strong>{{ warehouse.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-accent text-black">{{ warehouse.code }}</span>
+                        </td>
+                        <td>
+                            {% if warehouse.address %}
+                                {{ warehouse.address|truncatewords:10 }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ warehouse.location_count|default:0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ warehouse.product_count|default:0 }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'core:warehouse_detail' warehouse.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> No warehouses found
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Warehouse Modal -->
+<div class="modal fade" id="addWarehouseModal" tabindex="-1" aria-labelledby="addWarehouseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--accent-color); color: white;">
+                <h5 class="modal-title" id="addWarehouseModalLabel">
+                    <i class="bi bi-building"></i> Add Warehouse
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="warehouseForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div id="warehouseFormErrors" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Warehouse Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" id="id_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_code" class="form-label">Code <span class="text-danger">*</span></label>
+                        <input type="text" name="code" class="form-control" id="id_code" maxlength="20" required>
+                        <small class="form-text text-muted">Short code used in references, e.g. WH1</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_address" class="form-label">Address</label>
+                        <textarea name="address" class="form-control" id="id_address" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-accent">Create Warehouse</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Location Modal -->
+<div class="modal fade" id="addLocationModal" tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--accent-color); color: white;">
+                <h5 class="modal-title" id="addLocationModalLabel">
+                    <i class="bi bi-pin-map"></i> Add Location
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="locationForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div id="locationFormErrors" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="id_warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                        <select name="warehouse" class="form-select" id="id_warehouse" required>
+                            <option value="">Select a warehouse...</option>
+                            {% for warehouse in warehouses %}
+                            <option value="{{ warehouse.id }}">{{ warehouse.name }} ({{ warehouse.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_location_name" class="form-label">Location Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" id="id_location_name" required>
+                        <small class="form-text text-muted">e.g., "Main Store", "Rack A1"</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-accent">Create Location</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Warehouse Form Handler
+    const warehouseForm = document.getElementById('warehouseForm');
+    const warehouseErrorDiv = document.getElementById('warehouseFormErrors');
+    
+    if (warehouseForm) {
+        warehouseForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(warehouseForm);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch('{% url "core:warehouse_create" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addWarehouseModal'));
+                    modal.hide();
+                    warehouseForm.reset();
+                    warehouseErrorDiv.classList.add('d-none');
+                    alert('Warehouse created successfully!');
+                    window.location.reload();
+                } else {
+                    warehouseErrorDiv.innerHTML = '';
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        errors.forEach(error => {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.textContent = `${field}: ${error}`;
+                            warehouseErrorDiv.appendChild(errorMsg);
+                        });
+                    }
+                    warehouseErrorDiv.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                warehouseErrorDiv.innerHTML = '<div>An error occurred. Please try again.</div>';
+                warehouseErrorDiv.classList.remove('d-none');
+            });
+        });
+    }
+    
+    // Location Form Handler
+    const locationForm = document.getElementById('locationForm');
+    const locationErrorDiv = document.getElementById('locationFormErrors');
+    
+    if (locationForm) {
+        locationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(locationForm);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch('{% url "core:location_create" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addLocationModal'));
+                    modal.hide();
+                    locationForm.reset();
+                    locationErrorDiv.classList.add('d-none');
+                    alert('Location created successfully!');
+                    window.location.reload();
+                } else {
+                    locationErrorDiv.innerHTML = '';
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        errors.forEach(error => {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.textContent = `${field}: ${error}`;
+                            locationErrorDiv.appendChild(errorMsg);
+                        });
+                    }
+                    locationErrorDiv.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                locationErrorDiv.innerHTML = '<div>An error occurred. Please try again.</div>';
+                locationErrorDiv.classList.remove('d-none');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+

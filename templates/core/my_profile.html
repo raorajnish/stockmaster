@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - StockMaster{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Profile Information Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header" style="background: var(--accent-color); color: white;">
+                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th width="40%">Username:</th>
+                        <td><strong>{{ user.username }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ user.email|default:"Not provided" }}</td>
+                    </tr>
+                    
+                    <tr>
+                        <th>Role:</th>
+                        <td>
+                            {% if user.is_manager %}
+                                <span class="badge bg-accent text-black">Inventory Manager</span>
+                            {% elif user.is_w_staff %}
+                                <span class="badge bg-info text-black">Warehouse Staff</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-black">User</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Date Joined:</th>
+                        <td>{{ user.date_joined|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Login:</th>
+                        <td>{{ user.last_login|date:"Y-m-d H:i"|default:"Never" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Statistics Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header" style="background: var(--accent-color); color: white;">
+                <h5 class="mb-0"><i class="bi bi-activity"></i> Activity Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="kpi-card" style="min-height: auto; padding: 1rem;">
+                            <div class="kpi-card-icon" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
+                                <i class="bi bi-arrow-down-circle"></i>
+                            </div>
+                            <div class="kpi-card-value" style="color: #17a2b8; font-size: 1.5rem;">{{ receipts_created }}</div>
+                            <div class="kpi-card-label" style="font-size: 0.85rem;">Receipts Created</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kpi-card" style="min-height: auto; padding: 1rem;">
+                            <div class="kpi-card-icon" style="background: rgba(40, 167, 69, 0.1); color: #28a745;">
+                                <i class="bi bi-arrow-up-circle"></i>
+                            </div>
+                            <div class="kpi-card-value" style="color: #28a745; font-size: 1.5rem;">{{ deliveries_created }}</div>
+                            <div class="kpi-card-label" style="font-size: 0.85rem;">Deliveries Created</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kpi-card" style="min-height: auto; padding: 1rem;">
+                            <div class="kpi-card-icon" style="background: rgba(112, 74, 102, 0.1); color: #704a66;">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </div>
+                            <div class="kpi-card-value" style="color: #704a66; font-size: 1.5rem;">{{ transfers_created }}</div>
+                            <div class="kpi-card-label" style="font-size: 0.85rem;">Transfers Created</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kpi-card" style="min-height: auto; padding: 1rem;">
+                            <div class="kpi-card-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+                                <i class="bi bi-sliders"></i>
+                            </div>
+                            <div class="kpi-card-value" style="color: #ffc107; font-size: 1.5rem;">{{ adjustments_created }}</div>
+                            <div class="kpi-card-label" style="font-size: 0.85rem;">Adjustments Created</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Operations Card -->
+<div class="card">
+    <div class="card-header" style="background: var(--bg-light);">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Operations</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-0">
+            <i class="bi bi-info-circle"></i> 
+            View your complete operation history in the 
+            <a href="{% url 'core:move_history' %}">Move History</a> page.
+        </p>
+    </div>
+</div>
+{% endblock %}
+

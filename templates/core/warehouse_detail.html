@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ warehouse.name }} - StockMaster{% endblock %}
+
+{% block page_title %}{{ warehouse.name }} Details{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<div class="mb-3">
+    <a href="{% url 'core:warehouses_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Warehouses
+    </a>
+</div>
+
+<!-- General Info Card -->
+<div class="card mb-4">
+    <div class="card-header" style="background: var(--accent-color); color: white;">
+        <h5 class="mb-0"><i class="bi bi-info-circle"></i> General Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th width="40%">Warehouse Name:</th>
+                        <td><strong>{{ warehouse.name }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Code:</th>
+                        <td><span class="badge bg-accent text-black">{{ warehouse.code }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Address:</th>
+                        <td>
+                            {% if warehouse.address %}
+                                {{ warehouse.address|linebreaks }}
+                            {% else %}
+                                <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th width="40%">Total Locations:</th>
+                        <td><span class="badge bg-info">{{ total_locations }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Total Products:</th>
+                        <td><span class="badge bg-success">{{ total_products }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Total Quantity:</th>
+                        <td><span class="badge bg-primary">{{ total_quantity }}</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Locations Table -->
+<div class="data-table">
+    <div class="table-header">
+        <h5 class="mb-0"><i class="bi bi-pin-map"></i> Locations</h5>
+        <span class="text-muted small">{{ locations|length }} locations</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead style="background: var(--bg-light);">
+                <tr>
+                    <th>Location Name</th>
+                    <th>Code</th>
+                    <th>Is Default Receipt</th>
+                    <th>Is Default Delivery</th>
+                    <th>Parent Location</th>
+                    <th>Products Stored</th>
+                    <th>Total Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if locations %}
+                    {% for location in locations %}
+                    <tr>
+                        <td>
+                            <strong>{{ location.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ location.warehouse.code }}-{{ location.name|slice:":3"|upper }}</span>
+                        </td>
+                        <td>
+                            <span class="text-muted small">N/A</span>
+                        </td>
+                        <td>
+                            <span class="text-muted small">N/A</span>
+                        </td>
+                        <td>
+                            <span class="text-muted">-</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ location.product_count|default:0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ location.total_stock|default:0 }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> No locations found for this warehouse
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

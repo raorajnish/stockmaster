@@ -5,12 +5,12 @@ from django.utils import timezone
 from django.contrib import messages
 from .models import (
     Product, StockLevel, InventoryOperation, 
-    Warehouse, Location, Category, UnitOfMeasure, Partner, OperationLine
+    Warehouse, Location, Category, UnitOfMeasure, Partner, OperationLine, StockLedgerEntry
 )
 from .forms import (
     ProductForm, ReceiptForm, OperationLineForm, PartnerForm, 
     CategoryForm, UnitOfMeasureForm, DeliveryForm, 
-    InternalTransferForm, StockAdjustmentForm
+    InternalTransferForm, StockAdjustmentForm, WarehouseForm, LocationForm
 )
 
 def home(request):
@@ -34,7 +34,7 @@ def dashboard(request):
     ).distinct().count()
     
     # Low Stock Items: Products below min_qty (handle NULL stock as 0)
-    low_stock_products = Product.objects.filter(
+    low_stock_products_count = Product.objects.filter(
         is_active=True
     ).annotate(
         total_stock=Case(
@@ -46,6 +46,33 @@ def dashboard(request):
         total_stock__lt=F('min_stock'),
         total_stock__gte=0
     ).distinct().count()
+    
+    # Get actual low stock products list with details
+    low_stock_products_queryset = Product.objects.filter(
+        is_active=True
+    ).annotate(
+        total_stock=Case(
+            When(stock_levels__quantity__isnull=True, then=Value(0)),
+            default=Sum('stock_levels__quantity'),
+            output_field=IntegerField()
+        )
+    ).filter(
+        total_stock__lt=F('min_stock'),
+        total_stock__gte=0
+    ).select_related('category', 'uom').distinct().order_by('name')
+    
+    # Prepare low stock products with calculated difference
+    low_stock_products = []
+    for product in low_stock_products_queryset:
+        current_stock = product.total_stock if product.total_stock else 0
+        min_stock = product.min_stock if product.min_stock else 0
+        difference = min_stock - current_stock
+        low_stock_products.append({
+            'product': product,
+            'current_stock': current_stock,
+            'min_stock': min_stock,
+            'difference': difference,
+        })
     
     # Out of Stock Items: Products with available quantity = 0
     out_of_stock_products = Product.objects.filter(
@@ -84,9 +111,9 @@ def dashboard(request):
         'source_location__warehouse',
         'destination_location__warehouse',
         'partner'
-    ).all().order_by('-created_at')[:50]
+    ).all().order_by('-created_at')
     
-    # Apply filters
+    # Apply filters BEFORE slicing
     if operation_type:
         operations = operations.filter(type=operation_type)
     if status_filter:
@@ -105,9 +132,12 @@ def dashboard(request):
             Q(lines__product__name__icontains=search_query)
         ).distinct()
     
+    # Now slice after all filters are applied
+    operations = operations[:50]
+    
     # Prepare operations for template
     recent_operations = []
-    for op in operations[:20]:  # Limit to 20 most recent
+    for op in operations[:20]:  # Limit to 20 most recent for display
         recent_operations.append({
             'reference': op.reference or '(no ref)',
             'type': op.get_type_display(),
@@ -126,7 +156,8 @@ def dashboard(request):
     
     context = {
         'total_products': products_with_stock,
-        'low_stock_items': low_stock_products,
+        'low_stock_items': low_stock_products_count,
+        'low_stock_products': low_stock_products,
         'out_of_stock_items': out_of_stock_products,
         'pending_receipts': pending_receipts,
         'pending_deliveries': pending_deliveries,
@@ -989,3 +1020,272 @@ def stock_adjustment_validate(request, pk):
     
     messages.success(request, f'Stock Adjustment "{adjustment.reference}" validated successfully! Stock updated.')
     return redirect('core:stock_adjustments_list')
+
+# ==========================
+# MOVE HISTORY (STOCK LEDGER)
+# ==========================
+
+@login_required
+def move_history(request):
+    """View-only history of all stock movements"""
+    # Get filter parameters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    product_filter = request.GET.get('product', '')
+    warehouse_filter = request.GET.get('warehouse', '')
+    location_filter = request.GET.get('location', '')
+    doc_type_filter = request.GET.get('doc_type', '')
+    
+    # Build query from InventoryOperation and OperationLine
+    # Since StockLedgerEntry might not be populated, we'll use operations
+    operations = InventoryOperation.objects.filter(
+        status='DONE'  # Only show completed operations
+    ).select_related(
+        'source_location__warehouse',
+        'destination_location__warehouse',
+        'created_by'
+    ).prefetch_related('lines__product').order_by('-created_at')
+    
+    # Apply filters
+    if date_from:
+        operations = operations.filter(created_at__gte=date_from)
+    if date_to:
+        operations = operations.filter(created_at__lte=date_to)
+    if product_filter:
+        operations = operations.filter(lines__product_id=product_filter).distinct()
+    if warehouse_filter:
+        operations = operations.filter(
+            Q(source_location__warehouse_id=warehouse_filter) |
+            Q(destination_location__warehouse_id=warehouse_filter)
+        )
+    if location_filter:
+        operations = operations.filter(
+            Q(source_location_id=location_filter) |
+            Q(destination_location_id=location_filter)
+        )
+    if doc_type_filter:
+        operations = operations.filter(type=doc_type_filter)
+    
+    # Build move history entries from operations
+    move_history_entries = []
+    for operation in operations:
+        for line in operation.lines.all():
+            # Determine quantity change direction based on operation type
+            if operation.type == 'RECEIPT':
+                qty_change = line.quantity  # Positive (incoming)
+                from_loc = None
+                to_loc = operation.destination_location
+            elif operation.type == 'DELIVERY':
+                qty_change = -line.quantity  # Negative (outgoing)
+                from_loc = operation.source_location
+                to_loc = None
+            elif operation.type == 'INTERNAL':
+                qty_change = line.quantity  # Positive at destination
+                from_loc = operation.source_location
+                to_loc = operation.destination_location
+            else:  # ADJUST
+                qty_change = line.quantity  # Can be positive or negative
+                from_loc = operation.source_location
+                to_loc = operation.source_location  # Same location for adjustments
+            
+            move_history_entries.append({
+                'date_time': operation.created_at,
+                'product': line.product,
+                'from_location': from_loc,
+                'to_location': to_loc,
+                'quantity_change': qty_change,
+                'document_type': operation.get_type_display(),
+                'document_type_code': operation.type,
+                'document_reference': operation.reference or '(no ref)',
+                'performed_by': operation.created_by,
+            })
+    
+    # Sort by date (most recent first)
+    move_history_entries.sort(key=lambda x: x['date_time'], reverse=True)
+    
+    # Get filter options
+    products = Product.objects.filter(is_active=True).order_by('name')
+    warehouses = Warehouse.objects.all()
+    locations = Location.objects.all()
+    
+    context = {
+        'move_history_entries': move_history_entries,
+        'products': products,
+        'warehouses': warehouses,
+        'locations': locations,
+        'operation_types': InventoryOperation.OPERATION_TYPES,
+        'current_filters': {
+            'date_from': date_from,
+            'date_to': date_to,
+            'product': product_filter,
+            'warehouse': warehouse_filter,
+            'location': location_filter,
+            'doc_type': doc_type_filter,
+        }
+    }
+    return render(request, 'core/move_history.html', context)
+
+# ==========================
+# WAREHOUSES
+# ==========================
+
+@login_required
+def warehouses_list(request):
+    """List all warehouses with statistics"""
+    warehouses = Warehouse.objects.annotate(
+        location_count=Count('locations', distinct=True),
+        product_count=Count('locations__stock_levels__product', distinct=True)
+    ).order_by('code')
+    
+    context = {
+        'warehouses': warehouses,
+    }
+    return render(request, 'core/warehouses_list.html', context)
+
+@login_required
+def warehouse_detail(request, pk):
+    """Detail view of a warehouse with locations"""
+    warehouse = get_object_or_404(Warehouse, pk=pk)
+    
+    # Get all locations for this warehouse
+    locations = Location.objects.filter(warehouse=warehouse).annotate(
+        product_count=Count('stock_levels__product', distinct=True),
+        total_stock=Sum('stock_levels__quantity')
+    ).order_by('name')
+    
+    # Get statistics
+    total_locations = locations.count()
+    total_products = StockLevel.objects.filter(
+        location__warehouse=warehouse
+    ).values('product').distinct().count()
+    total_quantity = StockLevel.objects.filter(
+        location__warehouse=warehouse
+    ).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    context = {
+        'warehouse': warehouse,
+        'locations': locations,
+        'total_locations': total_locations,
+        'total_products': total_products,
+        'total_quantity': total_quantity,
+    }
+    return render(request, 'core/warehouse_detail.html', context)
+
+@login_required
+def warehouse_create(request):
+    """Create a new warehouse"""
+    if request.method == 'POST':
+        form = WarehouseForm(request.POST)
+        if form.is_valid():
+            warehouse = form.save()
+            messages.success(request, f'Warehouse "{warehouse.name}" created successfully!')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                # AJAX request - return JSON
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'warehouse_id': warehouse.id,
+                    'warehouse_name': str(warehouse)
+                })
+            return redirect('core:warehouses_list')
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+    else:
+        form = WarehouseForm()
+    
+    # If AJAX request, return form HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        html = render_to_string('core/warehouse_form_modal.html', {'form': form}, request=request)
+        from django.http import JsonResponse
+        return JsonResponse({'html': html})
+    
+    context = {
+        'form': form,
+        'title': 'Add Warehouse'
+    }
+    return render(request, 'core/warehouse_form.html', context)
+
+@login_required
+def location_create(request):
+    """Create a new location"""
+    if request.method == 'POST':
+        form = LocationForm(request.POST)
+        if form.is_valid():
+            location = form.save()
+            messages.success(request, f'Location "{location.name}" created successfully!')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                # AJAX request - return JSON
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'location_id': location.id,
+                    'location_name': str(location)
+                })
+            return redirect('core:warehouses_list')
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+    else:
+        form = LocationForm()
+    
+    # If AJAX request, return form HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        html = render_to_string('core/location_form_modal.html', {'form': form}, request=request)
+        from django.http import JsonResponse
+        return JsonResponse({'html': html})
+    
+    context = {
+        'form': form,
+        'title': 'Add Location'
+    }
+    return render(request, 'core/location_form.html', context)
+
+# ==========================
+# MY PROFILE
+# ==========================
+
+@login_required
+def my_profile(request):
+    """User profile page"""
+    user = request.user
+    
+    # Get user statistics
+    receipts_created = InventoryOperation.objects.filter(
+        type='RECEIPT',
+        created_by=user
+    ).count()
+    
+    deliveries_created = InventoryOperation.objects.filter(
+        type='DELIVERY',
+        created_by=user
+    ).count()
+    
+    transfers_created = InventoryOperation.objects.filter(
+        type='INTERNAL',
+        created_by=user
+    ).count()
+    
+    adjustments_created = InventoryOperation.objects.filter(
+        type='ADJUST',
+        created_by=user
+    ).count()
+    
+    context = {
+        'user': user,
+        'receipts_created': receipts_created,
+        'deliveries_created': deliveries_created,
+        'transfers_created': transfers_created,
+        'adjustments_created': adjustments_created,
+    }
+    return render(request, 'core/my_profile.html', context)

@@ -35,5 +35,18 @@ urlpatterns = [
     path('stock-adjustments/', views.stock_adjustments_list, name='stock_adjustments_list'),
     path('stock-adjustments/create/', views.stock_adjustment_create, name='stock_adjustment_create'),
     path('stock-adjustments/<int:pk>/validate/', views.stock_adjustment_validate, name='stock_adjustment_validate'),
+    
+    # Move History
+    path('move-history/', views.move_history, name='move_history'),
+    
+    # Warehouses
+    path('warehouses/', views.warehouses_list, name='warehouses_list'),
+    path('warehouses/create/', views.warehouse_create, name='warehouse_create'),
+    path('warehouses/<int:pk>/', views.warehouse_detail, name='warehouse_detail'),
+    # Locations
+    path('locations/create/', views.location_create, name='location_create'),
+    
+    # My Profile
+    path('my-profile/', views.my_profile, name='my_profile'),
 ]
 
