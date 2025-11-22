@@ -60,6 +60,7 @@ class Product(models.Model):
     uom = models.ForeignKey(UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True)
 
     min_stock = models.IntegerField(default=0)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Product cost per unit")
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

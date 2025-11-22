@@ -1,18 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}StockMaster{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    {% block extra_css %}{% endblock %}
-</head>
-<body>
-    {% block content %}{% endblock %}
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
 
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --accent-color: #704a66;
+        --accent-hover: #5a3a52;
+        --bg-light: #f8f9fa;
+        --sidebar-width: 260px;
+      }
+
+      body {
+        background-color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+      }
+
+      /* Sidebar Styles */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: var(--sidebar-width);
+        background: linear-gradient(180deg, #ffffff 0%, var(--bg-light) 100%);
+        border-right: 1px solid #e9ecef;
+        padding: 20px 0;
+        overflow-y: auto;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+      }
+
+      .sidebar-header {
+        padding: 0 20px 20px;
+        border-bottom: 2px solid var(--accent-color);
+        margin-bottom: 20px;
+      }
+
+      .sidebar-brand {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--accent-color);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .sidebar-menu-item {
+        margin: 2px 0;
+      }
+
+      .sidebar-menu-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: #495057;
+        text-decoration: none;
+        transition: all 0.2s;
+        gap: 12px;
+        font-weight: 500;
+      }
+
+      .sidebar-menu-link:hover,
+      .sidebar-menu-link.active {
+        background-color: rgba(112, 74, 102, 0.1);
+        color: var(--accent-color);
+        border-left: 3px solid var(--accent-color);
+        padding-left: 17px;
+      }
+
+      .sidebar-menu-link i {
+        width: 20px;
+        text-align: center;
+      }
+
+      .sidebar-divider {
+        height: 1px;
+        background: #e9ecef;
+        margin: 10px 20px;
+      }
+
+      /* Main Content */
+      .main-content {
+        margin-left: var(--sidebar-width);
+        min-height: 100vh;
+        background-color: var(--bg-light);
+      }
+
+      /* Top Navbar */
+      .top-navbar {
+        background: #ffffff;
+        border-bottom: 1px solid #e9ecef;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .content-wrapper {
+        padding: 30px;
+      }
+
+      /* KPI Cards */
+      .kpi-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s;
+        height: 100%;
+      }
+
+      .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(112, 74, 102, 0.15);
+        transform: translateY(-2px);
+      }
+
+      .kpi-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 15px;
+        background: rgba(112, 74, 102, 0.1);
+        color: var(--accent-color);
+      }
+
+      .kpi-card-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 10px 0;
+      }
+
+      .kpi-card-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .btn-primary,
+      .btn-accent {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+        color: #ffffff;
+      }
+
+      .btn-primary:hover,
+      .btn-accent:hover {
+        background-color: var(--accent-hover);
+        border-color: var(--accent-hover);
+        color: #ffffff;
+      }
+
+      .badge-accent {
+        background-color: var(--accent-color);
+        color: #ffffff;
+      }
+
+      .data-table {
+        background: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .table-header {
+        background: var(--bg-light);
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      /* Filters */
+      .filter-section {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+        }
+
+        .sidebar.show {
+          transform: translateX(0);
+        }
+
+        .main-content {
+          margin-left: 0;
+        }
+
+        .content-wrapper {
+          padding: 15px;
+        }
+
+        .kpi-card-value {
+          font-size: 1.5rem;
+        }
+      }
+
+      .mobile-menu-toggle {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        .mobile-menu-toggle {
+          display: block;
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          color: var(--accent-color);
+          cursor: pointer;
+        }
+      }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+  </head>
+
+  <body>
+    {% if user.is_authenticated %}
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a href="{% url 'core:dashboard' %}" class="sidebar-brand">
+          <i class="bi bi-box-seam"></i>
+          <span>StockMaster</span>
+        </a>
+      </div>
+
+      <ul class="sidebar-menu">
+        <!-- Dashboard -->
+        <li class="sidebar-menu-item">
+          <a
+            href="{% url 'core:dashboard' %}"
+            class="sidebar-menu-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+          >
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="sidebar-divider"></li>
+
+        <!-- Operations Section -->
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-inbox"></i>
+            <span>Operations</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-box-arrow-in-down"></i>
+            <span>Receipts</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-box-arrow-up"></i>
+            <span>Delivery Orders</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Internal Transfers</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-sliders"></i>
+            <span>Stock Adjustments</span>
+          </a>
+        </li>
+
+        <li class="sidebar-divider"></li>
+
+        <!-- Products -->
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-box-seam"></i>
+            <span>Products</span>
+          </a>
+        </li>
+
+        <!-- Move History -->
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-clock-history"></i>
+            <span>Move History</span>
+          </a>
+        </li>
+
+        <li class="sidebar-divider"></li>
+
+        <!-- Settings -->
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-gear"></i>
+            <span>Settings</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-building"></i>
+            <span>Warehouses</span>
+          </a>
+        </li>
+
+        <li class="sidebar-divider"></li>
+
+        <!-- Profile -->
+        <li class="sidebar-menu-item">
+          <a href="#" class="sidebar-menu-link">
+            <i class="bi bi-person"></i>
+            <span>My Profile</span>
+          </a>
+        </li>
+
+        <!-- Logout -->
+        <li class="sidebar-menu-item">
+          <form
+            method="post"
+            action="{% url 'users:logout' %}"
+            class="d-inline w-100"
+          >
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="sidebar-menu-link w-100 text-start border-0 bg-transparent"
+              style="cursor: pointer"
+            >
+              <i class="bi bi-box-arrow-right"></i>
+              <span>Logout</span>
+            </button>
+          </form>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Top Navbar -->
+      <div class="top-navbar d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+            <i class="bi bi-list"></i>
+          </button>
+          <h4 class="mb-0">{% block page_title %}Dashboard{% endblock %}</h4>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+          <span class="text-muted">
+            <i class="bi bi-person-circle"></i> {{ user.username }} 
+            <span class="badge badge-accent ms-2">Manager</span>
+            {% elif user.is_w_staff %}
+            <span class="badge bg-info ms-2">Staff</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- Content Wrapper -->
+      <div class="content-wrapper">{% block content %}{% endblock %}</div>
+    </div>
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.classList.toggle("show");
+      }
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener("click", function (event) {
+        const sidebar = document.getElementById("sidebar");
+        const toggle = document.querySelector(".mobile-menu-toggle");
+
+        if (
+          window.innerWidth <= 768 &&
+          sidebar &&
+          toggle &&
+          !sidebar.contains(event.target) &&
+          !toggle.contains(event.target)
+        ) {
+          sidebar.classList.remove("show");
+        }
+      });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>
