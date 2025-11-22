@@ -1289,3 +1289,132 @@ def my_profile(request):
         'adjustments_created': adjustments_created,
     }
     return render(request, 'core/my_profile.html', context)
+
+from django.http import JsonResponse
+import json
+import matplotlib.pyplot as plt
+import io, base64
+
+@login_required
+def chatbot_view(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    data = json.loads(request.body)
+    message = data.get('message', '').lower()
+
+    from django.conf import settings
+    from google import genai
+    from google.genai import types
+
+    api_key = getattr(settings, 'GEMINI_API_KEY', None)
+    if not api_key:
+        return JsonResponse({'reply': 'Gemini API key not configured.'})
+
+    # Prepare prompt with comprehensive database context
+    # 1. Products & Stock
+    products = Product.objects.filter(is_active=True).prefetch_related('stock_levels__location')
+    product_info = []
+    for p in products:
+        total_stock = sum(sl.quantity for sl in p.stock_levels.all())
+        stock_details = ", ".join([f"{sl.location.name}: {sl.quantity}" for sl in p.stock_levels.all() if sl.quantity > 0])
+        product_info.append(f"- {p.sku}: {p.name} | Cost: ${p.cost} | Min Stock: {p.min_stock} | Total Stock: {total_stock} ({stock_details})")
+    
+    # 2. Warehouses & Locations
+    warehouses = Warehouse.objects.prefetch_related('locations').all()
+    wh_info = []
+    for wh in warehouses:
+        locs = ", ".join([l.name for l in wh.locations.all()])
+        wh_info.append(f"- {wh.code} ({wh.name}): Locations [{locs}]")
+
+    # 3. Partners
+    partners = Partner.objects.all()
+    partner_info = [f"- {p.name} ({p.partner_type})" for p in partners]
+
+    # 4. Recent Operations
+    ops = InventoryOperation.objects.all().order_by('-created_at')[:10]
+    op_info = []
+    for op in ops:
+        op_info.append(f"- {op.reference} ({op.get_type_display()}) Status: {op.status} Date: {op.created_at.strftime('%Y-%m-%d')}")
+
+    context_str = (
+        "DATABASE CONTEXT:\n\n"
+        "PRODUCTS & STOCK:\n" + "\n".join(product_info) + "\n\n"
+        "WAREHOUSES:\n" + "\n".join(wh_info) + "\n\n"
+        "PARTNERS:\n" + "\n".join(partner_info) + "\n\n"
+        "RECENT OPERATIONS:\n" + "\n".join(op_info)
+    )
+
+    prompt = f"System: You are a helpful assistant for a stock management system. Use the provided database context to answer the user's question accurately. If the user asks to visualize, plot, or graph data, call the create_bar_chart function.\n\n{context_str}\n\nUser: {message}"
+
+    # Define tool
+    create_chart_function = {
+        "name": "create_bar_chart",
+        "description": "Creates a bar chart given a title, labels, and corresponding values.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The title for the chart.",
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of labels for the data points.",
+                },
+                "values": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "description": "List of numerical values.",
+                },
+            },
+            "required": ["title", "labels", "values"],
+        },
+    }
+
+    try:
+        client = genai.Client(api_key=api_key)
+        tools = types.Tool(function_declarations=[create_chart_function])
+        config = types.GenerateContentConfig(tools=[tools])
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=config
+        )
+        
+        # Check for function call
+        if response.candidates and response.candidates[0].content.parts:
+            part = response.candidates[0].content.parts[0]
+            if part.function_call:
+                fc = part.function_call
+                if fc.name == 'create_bar_chart':
+                    args = fc.args
+                    title = args.get('title', 'Chart')
+                    labels = args.get('labels', [])
+                    values = args.get('values', [])
+                    
+                    # Plotting logic
+                    plt.figure(figsize=(8,4))
+                    plt.bar(labels, values, color='#704a66')
+                    plt.xticks(rotation=45, ha='right')
+                    plt.title(title)
+                    plt.tight_layout()
+                    
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
+                    img_b64 = base64.b64encode(buf.read()).decode('utf-8')
+                    plt.close()
+                    
+                    reply = f'<p>Here is the chart for {title}:</p><img src="data:image/png;base64,{img_b64}" style="max-width:100%" />'
+                else:
+                    reply = "Function call not supported."
+            else:
+                reply = response.text if response.text else "No response text generated."
+        else:
+            reply = "No response from Gemini."
+
+    except Exception as e:
+        reply = f"Gemini error: {str(e)}"
+    return JsonResponse({'reply': reply})

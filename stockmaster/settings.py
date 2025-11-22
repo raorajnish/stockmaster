@@ -27,6 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Gemini API Key
+GEMINI_API_KEY = 'AIzaSyDrbKM82Co10xDTFicNJ7C57A-IszaB5ms'
+
 
 # Application definition
 
@@ -77,9 +80,9 @@ WSGI_APPLICATION = 'stockmaster.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'stockmaster_db',  # Database name
+        'NAME': 'stockmaster_db1',  # Database name
         'USER': 'postgres',  # PostgreSQL username
-        'PASSWORD': '#Raj0977',  # PostgreSQL password
+        'PASSWORD': '1245',  # PostgreSQL password
         'HOST': 'localhost',  # Database host (use 'localhost' for local)
         'PORT': '5432',  # PostgreSQL port (default is 5432)
     }

@@ -244,6 +244,118 @@
 
   <body>
     {% if user.is_authenticated %}
+    <!-- Floating Chat Icon & Modal -->
+    <style>
+      .chat-float-btn {
+        position: fixed;
+        bottom: 32px;
+        right: 32px;
+        z-index: 1050;
+        background: var(--accent-color);
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        box-shadow: 0 4px 16px rgba(112,74,102,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .chat-float-btn:hover {
+        background: var(--accent-hover);
+      }
+      .chat-modal {
+        position: fixed;
+        bottom: 100px;
+        right: 32px;
+        width: 350px;
+        max-width: 90vw;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(112,74,102,0.25);
+        z-index: 1060;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .chat-modal-header {
+        background: var(--accent-color);
+        color: #fff;
+        padding: 16px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .chat-modal-body {
+        padding: 16px;
+        height: 250px;
+        overflow-y: auto;
+        background: #f8f9fa;
+      }
+      .chat-modal-footer {
+        padding: 12px 16px;
+        background: #f3f0f4;
+        display: flex;
+        gap: 8px;
+      }
+      .chat-input {
+        flex: 1;
+        border-radius: 8px;
+        border: 1px solid #d1c4e9;
+        padding: 8px;
+      }
+      .chat-send-btn {
+        background: var(--accent-color);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .chat-send-btn:hover {
+        background: var(--accent-hover);
+      }
+      .chat-message {
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #e9d8f6;
+        color: #4b2e4a;
+        max-width: 80%;
+      }
+      .chat-message.user {
+        background: #704a66;
+        color: #fff;
+        margin-left: auto;
+      }
+      .chat-message.bot {
+        background: #f3f0f4;
+        color: #704a66;
+        margin-right: auto;
+      }
+    </style>
+    <button class="chat-float-btn" id="chatOpenBtn" title="Chatbot">
+      <i class="bi bi-chat-dots"></i>
+    </button>
+    <div class="chat-modal" id="chatModal">
+      <div class="chat-modal-header">
+        Warehouse Assistant
+        <button type="button" class="btn-close btn-close-white" aria-label="Close" id="chatCloseBtn"></button>
+      </div>
+      <div class="chat-modal-body" id="chatBody">
+        <!-- Messages will appear here -->
+      </div>
+      <div class="chat-modal-footer">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." />
+        <button class="chat-send-btn" id="chatSendBtn">Send</button>
+      </div>
+    </div>
 
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
@@ -427,6 +539,76 @@
           sidebar.classList.remove("show");
         }
       });
+
+      // Chatbot Functionality
+      
+      // Chatbot UI logic
+      const chatOpenBtn = document.getElementById('chatOpenBtn');
+      const chatModal = document.getElementById('chatModal');
+      const chatCloseBtn = document.getElementById('chatCloseBtn');
+      const chatSendBtn = document.getElementById('chatSendBtn');
+      const chatInput = document.getElementById('chatInput');
+      const chatBody = document.getElementById('chatBody');
+
+      chatOpenBtn.addEventListener('click', () => {
+        chatModal.style.display = 'flex';
+        chatInput.focus();
+      });
+      chatCloseBtn.addEventListener('click', () => {
+        chatModal.style.display = 'none';
+      });
+
+      function appendMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-message ' + sender;
+        msgDiv.innerHTML = text; // Use innerHTML to render HTML content (like images)
+        chatBody.appendChild(msgDiv);
+        chatBody.scrollTop = chatBody.scrollHeight;
+      }
+
+      chatSendBtn.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        appendMessage(text, 'user');
+        chatInput.value = '';
+        // Send to backend
+        fetch('/chatbot/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({message: text})
+        })
+        .then(res => res.json())
+        .then(data => {
+          appendMessage(data.reply, 'bot');
+        })
+        .catch(() => {
+          appendMessage('Sorry, something went wrong.', 'bot');
+        });
+      }
+
+      // CSRF helper
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
     </script>
 
     {% block extra_js %}{% endblock %}

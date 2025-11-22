@@ -48,5 +48,9 @@ urlpatterns = [
     
     # My Profile
     path('my-profile/', views.my_profile, name='my_profile'),
+
+    #chatbot
+    path('chatbot/', views.chatbot_view, name='chatbot'),
 ]
+
 
